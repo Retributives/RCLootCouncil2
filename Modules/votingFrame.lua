@@ -36,6 +36,7 @@ function RCVotingFrame:OnInitialize()
 		{ name = L["Role"],		DoCellUpdate = RCVotingFrame.SetCellRole,			colName = "role",		sortnext = 5,		width = 55, },										-- 4 Role
 		{ name = L["Response"],	DoCellUpdate = RCVotingFrame.SetCellResponse,	colName = "response",sortnext = 13,		width = 240, comparesort = ResponseSort,},-- 5 Response
 		{ name = L["ilvl"],		DoCellUpdate = RCVotingFrame.SetCellIlvl,			colName = "ilvl",		sortnext = 7,		width = 45, },										-- 6 Total ilvl
+		{ name = "pr",		DoCellUpdate = RCVotingFrame.SetCellPR,			colName = "pr",		sortnext = 7,		width = 45, },										-- 7 pr
 		{ name = L["Diff"],		DoCellUpdate = RCVotingFrame.SetCellDiff,			colName = "diff",								width = 40, },										-- 7 ilvl difference
 		{ name = L["g1"],			DoCellUpdate = RCVotingFrame.SetCellGear,			colName = "gear1",	sortnext = 5,		width = 20, align = "CENTER", },				-- 8 Current gear 1
 		{ name = L["g2"],			DoCellUpdate = RCVotingFrame.SetCellGear,			colName = "gear2",	sortnext = 5,		width = 20, align = "CENTER", },				-- 9 Current gear 2
@@ -185,8 +186,10 @@ function RCVotingFrame:OnCommReceived(prefix, serializedMsg, distri, sender)
 			elseif command == "response" then
 				local session, name, t = unpack(data)
 				for k,v in pairs(t) do
-					self:SetCandidateData(session, name, k, v)
+					print(name .. " - " .. k .. ", " .. v);
+					self:SetCandidateData(session, name, k, v);
 				end
+				self:SetCandidateData(session, name, "pr", 50);
 				self:Update()
 
 			elseif command == "rolls" then
@@ -235,6 +238,7 @@ function RCVotingFrame:Setup(table)
 				rank = v.rank,
 				role = v.role,
 				response = "ANNOUNCED",
+				pr = 0,
 				ilvl = "",
 				diff = "",
 				gear1 = nil,
@@ -755,6 +759,12 @@ function RCVotingFrame.SetCellIlvl(rowFrame, frame, data, cols, row, realrow, co
 	local name = data[realrow].name
 	frame.text:SetText(db.iLvlDecimal and addon.round(lootTable[session].candidates[name].ilvl,2) or addon.round(lootTable[session].candidates[name].ilvl))
 	data[realrow].cols[column].value = lootTable[session].candidates[name].ilvl
+end
+
+function RCVotingFrame.SetCellPR(rowFrame, frame, data, cols, row, realrow, column, fShow, table, ...)
+	local name = data[realrow].name
+	frame.text:SetText(db.prDecimal and addon.round(lootTable[session].candidates[name].pr,2) or addon.round(lootTable[session].candidates[name].pr))
+	data[realrow].cols[column].value = lootTable[session].candidates[name].pr
 end
 
 function RCVotingFrame.SetCellDiff(rowFrame, frame, data, cols, row, realrow, column, fShow, table, ...)
