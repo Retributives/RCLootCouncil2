@@ -13,6 +13,7 @@ local L = LibStub("AceLocale-3.0"):GetLocale("RCLootCouncil")
 local LibDialog = LibStub("LibDialog-1.0")
 local LibGP = LibStub("LibGearPoints-1.2")
 local LibGS = LibStub("LibGuildStorage-1.2")
+local EPGP	= LibStub("AceAddon-3.0"):GetAddon("EPGP")
 
 local db;
 
@@ -629,12 +630,11 @@ function RCLootCouncilML:GiveGP(player, item, reason)
 	if(addon.testMode) then
 		print("Old note: " .. LibGS:GetNote(player));
 	end
-	local ep,gp = string.split(",", LibGS:GetNote(player));
-	gp = gp + finalGP;
+	local ep,gp, isMain = EPGP:GetEPGP(player);
 	if(addon.testMode) then
-		print("New note: " .. ep .. "," .. gp)
+		print("New note: " .. ep .. "," .. gp+finalGP)
 	else
-		LibGS:SetNote(player, ep .. "," .. gp);
+	 	EPGP:IncGPBy(player, item, finalGP);
 	end
 end
 
