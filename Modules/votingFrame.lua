@@ -8,6 +8,7 @@ local addon = LibStub("AceAddon-3.0"):GetAddon("RCLootCouncil")
 RCVotingFrame = addon:NewModule("RCVotingFrame", "AceComm-3.0", "AceTimer-3.0")
 local LibDialog = LibStub("LibDialog-1.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("RCLootCouncil")
+local EPGP	= LibStub("AceAddon-3.0"):GetAddon("EPGP")
 
 local ROW_HEIGHT = 20;
 local NUM_ROWS = 15;
@@ -228,15 +229,13 @@ function RCVotingFrame:GetCandidateData(session, candidate, data)
 end
 
 function RCVotingFrame:GetPRValues(s)
-	local numGuildMembers, numOnline, numOnlineAndMobile = GetNumGuildMembers();
-	for i = 1, numGuildMembers do
-		local fullName, rank, rankIndex, level, class, zone, note, officernote, online, status, classFileName, achievementPoints, achievementRank, isMobile, canSoR, reputation = GetGuildRosterInfo(i);
-		if (string.find(officernote,"%d+,%d+")) then
-			local ep, gp = strsplit(",", officernote);
-			self.pr[fullName] = (ep+0)/(gp+100);
-			if(s ~= nil) then
-				self:SetCandidateData(s, fullName, "pr", self.pr[fullName]);
-			end
+	local numRaidMembers = GetNumGroupMembers();
+	local realmName = GetRealmName();
+	for i = 1, numRaidMembers do
+		local name, rank, subgroup, level, class, fileName, zone, online, isDead, role, isML = GetRaidRosterInfo(i);
+		local ep, gp, main = EPGP:GetEPGP(name .. "-" .. realmName);
+		if(ep ~= nil)then
+				self:SetCandidateData(s, name .. "-" .. realmName, "pr", ep/gp);
 		end
 	end
 end
