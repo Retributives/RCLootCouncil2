@@ -63,6 +63,7 @@ function RCVotingFrame:OnEnable()
 	active = true
 	moreInfo = db.modules["RCVotingFrame"].moreInfo
 	self.frame = self:GetFrame()
+	self.pr = {};
 	self:ScheduleTimer("CandidateCheck", 20)
 	addon:Debug("RCVotingFrame", "enabled")
 end
@@ -186,10 +187,9 @@ function RCVotingFrame:OnCommReceived(prefix, serializedMsg, distri, sender)
 			elseif command == "response" then
 				local session, name, t = unpack(data)
 				for k,v in pairs(t) do
-					print(name .. " - " .. k .. ", " .. v);
 					self:SetCandidateData(session, name, k, v);
 				end
-				self:SetCandidateData(session, name, "pr", 50);
+				self:SetCandidateData(session, name, "pr", self.pr[name]);
 				self:Update()
 
 			elseif command == "rolls" then
@@ -210,6 +210,7 @@ end
 -- Getter/Setter for candidate data
 -- Handles errors
 function RCVotingFrame:SetCandidateData(session, candidate, data, val)
+	--print("SetCandidateData: " .. (session or "") .. ", " .. (candidate or "") .. ", " .. (data  or "") .. ", " .. (val  or ""));
 	local function Set(session, candidate, data, val)
 		lootTable[session].candidates[candidate][data] = val
 	end
@@ -224,6 +225,20 @@ function RCVotingFrame:GetCandidateData(session, candidate, data)
 	local ok, arg = pcall(Get, session, candidate, data)
 	if not ok then addon:Debug("Error in 'GetCandidateData':", arg, session, candidate, data)
 	else return arg end
+end
+
+function RCVotingFrame:GetPRValues(s)
+	local numGuildMembers, numOnline, numOnlineAndMobile = GetNumGuildMembers();
+	for i = 1, numGuildMembers do
+		local fullName, rank, rankIndex, level, class, zone, note, officernote, online, status, classFileName, achievementPoints, achievementRank, isMobile, canSoR, reputation = GetGuildRosterInfo(i);
+		if (string.find(officernote,"%d+,%d+")) then
+			local ep, gp = strsplit(",", officernote);
+			self.pr[fullName] = (ep+0)/(gp+100);
+			if(s ~= nil) then
+				self:SetCandidateData(s, fullName, "pr", self.pr[fullName]);
+			end
+		end
+	end
 end
 
 function RCVotingFrame:Setup(table)
@@ -317,6 +332,7 @@ end
 
 function RCVotingFrame:SwitchSession(s)
 	addon:Debug("SwitchSession", s)
+	self:GetPRValues(s);
 	-- Start with setting up some statics
 	local old = session
 	session = s
@@ -763,7 +779,7 @@ end
 
 function RCVotingFrame.SetCellPR(rowFrame, frame, data, cols, row, realrow, column, fShow, table, ...)
 	local name = data[realrow].name
-	frame.text:SetText(db.prDecimal and addon.round(lootTable[session].candidates[name].pr,2) or addon.round(lootTable[session].candidates[name].pr))
+	frame.text:SetText(addon.round(lootTable[session].candidates[name].pr,3))
 	data[realrow].cols[column].value = lootTable[session].candidates[name].pr
 end
 
