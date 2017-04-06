@@ -28,6 +28,10 @@ local GuildRankSort, ResponseSort -- Initialize now to avoid errors
 local defaultScrollTableData = {} -- See below
 
 function RCVotingFrame:OnInitialize()
+	if(EPGP==nil)then
+		print("EPGP NOT FOUND SON")
+	end
+
 	-- Contains all the default data needed for the scroll table
 	-- The default values are in sorted order
 	defaultScrollTableData = {
@@ -144,6 +148,7 @@ function RCVotingFrame:OnCommReceived(prefix, serializedMsg, distri, sender)
 			elseif command == "change_response" and addon:UnitIsUnit(sender, addon.masterLooter) then
 				local ses, name, response = unpack(data)
 				self:SetCandidateData(ses, name, "response", response)
+				self:GetPRValues(ses)
 				self:Update()
 
 			elseif command == "lootAck" then
@@ -190,7 +195,7 @@ function RCVotingFrame:OnCommReceived(prefix, serializedMsg, distri, sender)
 				for k,v in pairs(t) do
 					self:SetCandidateData(session, name, k, v);
 				end
-				self:SetCandidateData(session, name, "pr", self.pr[name]);
+				self:GetPRValues(ses)
 				self:Update()
 
 			elseif command == "rolls" then
