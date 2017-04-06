@@ -5,7 +5,7 @@ core.lua	Contains core elements of the addon
 TODOs/Notes
 	Things marked with "todo"
 		- IDEA add an observer/council string to show players their role?
-		- The 4'th cell in @line81 in versionCheck should not be static
+		- Item subtype in history exports
 --------------------------------
 CHANGELOG
 	-- SEE CHANGELOG.TXT
@@ -313,16 +313,16 @@ function RCLootCouncil:OnEnable()
 		self:SendCommand("guild", "verTest", self.version, self.tVersion) -- send out a version check
 	end
 
-	if self.db.global.version and self.db.global.version < "2.1.1"
-		and self.db.global.localizedSubTypes.created then -- We need to reset subtype locales due to changes in v2.1.1
-		self.db.global.localizedSubTypes.created = false
-	end
-
 	-- For some reasons all frames are blank until ActivateSkin() is called, even though the values used
 	-- in the :CreateFrame() all :Prints as expected :o
 	self:ActivateSkin(db.currentSkin)
 
-	self.db.global.version = self.version;
+	if self.db.global.version and self:VersionCompare(self.db.global.version, self.version) then -- We've upgraded
+		self.db.global.oldVersion = self.db.global.version
+		self.db.global.version = self.version
+	else -- Mostly for first time load
+		self.db.global.version = self.version;
+	end
 	self.db.global.logMaxEntries = self.defaults.global.logMaxEntries -- reset it now for zzz
 
 	if self.tVersion then
@@ -844,6 +844,9 @@ function RCLootCouncil:EnterCombat()
 	 InterfaceOptionsFrameOkay:Click()
 	end)
 	self.inCombat = true
+	if self.isMasterLooter then -- Grab the target after 10 seconds and hope it's the boss. We might grab the correct one when looting if not.
+		self:ScheduleTimer(function() self.target = GetUnitName("target") end, 10)
+	end
 	if not db.minimizeInCombat then return end
 	for _,frame in ipairs(frames) do
 		if frame:IsVisible() and not frame.combatMinimized then -- only minimize for combat if it isn't already minimized
@@ -1371,7 +1374,7 @@ function RCLootCouncil:DecodeItemLink(itemLink)
 	 upgradeTypeID, instanceDifficultyID, numBonuses, affixes = string.split(":", itemLink, 15)
 
 	 -- clean it up
-    local color = string.match(linkType, "^c?f?f?(%x*)")
+    local color = string.match(linkType, "|?c?f?f?(%x*)")
     linkType = string.gsub(linkType, "|?c?f?f?(%x*)|?H?", "")
     itemID = tonumber(itemID) or 0
     enchantID = tonumber(enchantID) or 0
@@ -1401,7 +1404,7 @@ function RCLootCouncil:DecodeItemLink(itemLink)
 	    upgradeID = tonumber(upgradeID) or 0
 	 end
 
-    return color, itemType, itemID, enchantID, gemID1, gemID2, gemID3, gemID4, suffixID, uniqueID, linkLevel,
+    return color, linktype, itemID, enchantID, gemID1, gemID2, gemID3, gemID4, suffixID, uniqueID, linkLevel,
 	 		specializationID, upgradeTypeID, upgradeID, instanceDifficultyID, numBonuses, bonusIDs
 end
 
@@ -1763,6 +1766,7 @@ end
 --@debug@
 -- debug func
 function printtable( data, level )
+	if not data then return end
 	level = level or 0
 	local ident=strrep('     ', level)
 	if level>6 then return end

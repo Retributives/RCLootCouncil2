@@ -295,6 +295,17 @@ function RCLootCouncilML:OnCommReceived(prefix, serializedMsg, distri, sender)
 				addon:ScheduleTimer("SendCommand", 2, sender, "candidates", self.candidates)
 				if self.running then -- Resend lootTable
 					addon:ScheduleTimer("SendCommand", 4, sender, "lootTable", self.lootTable)
+					-- v2.2.6 REVIEW For backwards compability we're just sending votingFrame's lootTable
+					-- This is quite redundant and should be removed in the future
+					local table = addon:GetActiveModule("votingframe"):GetLootTable()
+					-- Remove our own voting data if any
+					for ses, v in ipairs(table) do
+						v.haveVoted = false
+						for _, d in pairs(v.candidates) do
+							d.haveVoted = false
+						end
+					end
+					addon:ScheduleTimer("SendCommand", 5, sender, "reconnectData", table)
 				end
 				addon:Debug("Responded to reconnect from", sender)
 			end
@@ -327,8 +338,14 @@ function RCLootCouncilML:OnEvent(event, ...)
 end
 
 function RCLootCouncilML:LootOpened()
+	local sessionframe = addon:GetActiveModule("sessionframe")
 	if addon.isMasterLooter and GetNumLootItems() > 0 then
-		addon.target = GetUnitName("target") or L["Unknown/Chest"] -- capture the boss name
+		if addon.target and addon.target ~= "" then -- Capture boss name
+			local target = GetUnitName("target") or L["Unknown/Chest"]
+			if not (UnitInRaid(target) or UnitInParty(target)) then
+				addon.target = target -- Make sure we can't target one of our raid members for this
+			end
+		end
 		local updatedLootSlot = {}
 		for i = 1, GetNumLootItems() do
 			local item = GetLootSlotLink(i)
@@ -349,15 +366,19 @@ function RCLootCouncilML:LootOpened()
 				end
 			else
 				if db.altClickLooting then self:ScheduleTimer("HookLootButton", 0.5, i) end -- Delay lootbutton hooking to ensure other addons have had time to build their frames
-				local _, _, quantity, quality = GetLootSlotInfo(i)
-				if self:ShouldAutoAward(item, quality) and quantity > 0 then
-					self:AutoAward(i, item, quality, db.autoAwardTo, db.autoAwardReason, addon.target)
+				-- We might already have the session frame running, in which case we shouldn't add the items again
+				if not sessionframe:IsRunning() then
 
-				elseif self:CanWeLootItem(item, quality) and quantity > 0 then -- check if our options allows us to loot it
-					self:AddItem(item, false, i)
+					local _, _, quantity, quality = GetLootSlotInfo(i)
+					if self:ShouldAutoAward(item, quality) and quantity > 0 then
+						self:AutoAward(i, item, quality, db.autoAwardTo, db.autoAwardReason, addon.target)
 
-				elseif quantity == 0 then -- it's coin, just loot it
-					LootSlot(i)
+					elseif self:CanWeLootItem(item, quality) and quantity > 0 then -- check if our options allows us to loot it
+						self:AddItem(item, false, i)
+
+					elseif quantity == 0 then -- it's coin, just loot it
+						LootSlot(i)
+					end
 				end
 			end
 		end
