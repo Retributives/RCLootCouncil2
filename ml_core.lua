@@ -633,8 +633,8 @@ function RCLootCouncilML:GiveGP(player, item, reason)
 	local ep,gp, isMain = EPGP:GetEPGP(player);
 	if(addon.testMode) then
 		print("New note: " .. ep .. "," .. gp+finalGP)
-	else
-	 	EPGP:IncGPBy(player, item, finalGP);
+	elseif(finalGP ~= 0) then
+		EPGP:IncGPBy(player, item, finalGP);
 	end
 end
 
