@@ -1877,7 +1877,6 @@ function RCLootCouncil:GetResponseSort(response)
 end
 
 --#end UI Functions -----------------------------------------------------
---[===[@debug@
 -- debug func
 function printtable( data, level )
 	if not data then return end
