@@ -8,6 +8,7 @@ local addon = LibStub("AceAddon-3.0"):GetAddon("RCLootCouncil")
 RCVotingFrame = addon:NewModule("RCVotingFrame", "AceComm-3.0", "AceTimer-3.0")
 local LibDialog = LibStub("LibDialog-1.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("RCLootCouncil")
+local EPGP	= LibStub("AceAddon-3.0"):GetAddon("EPGP")
 
 local ROW_HEIGHT = 20;
 local NUM_ROWS = 15;
@@ -28,6 +29,10 @@ local defaultScrollTableData = {} -- See below
 local moreInfoData = {}
 
 function RCVotingFrame:OnInitialize()
+	if(EPGP==nil)then
+		print("EPGP NOT FOUND SON")
+	end
+
 	-- Contains all the default data needed for the scroll table
 	-- The default values are in sorted order
 	defaultScrollTableData = {
@@ -37,6 +42,7 @@ function RCVotingFrame:OnInitialize()
 		{ name = L["Role"],		DoCellUpdate = RCVotingFrame.SetCellRole,			colName = "role",		sortnext = 5,		width = 55, },										-- 4 Role
 		{ name = L["Response"],	DoCellUpdate = RCVotingFrame.SetCellResponse,	colName = "response",sortnext = 13,		width = 240, comparesort = ResponseSort,},-- 5 Response
 		{ name = L["ilvl"],		DoCellUpdate = RCVotingFrame.SetCellIlvl,			colName = "ilvl",		sortnext = 7,		width = 45, },										-- 6 Total ilvl
+		{ name = "pr",		DoCellUpdate = RCVotingFrame.SetCellPR,			colName = "pr",		sortnext = 7,		width = 45, },										-- 7 pr
 		{ name = L["Diff"],		DoCellUpdate = RCVotingFrame.SetCellDiff,			colName = "diff",								width = 40, },										-- 7 ilvl difference
 		{ name = L["g1"],			DoCellUpdate = RCVotingFrame.SetCellGear,			colName = "gear1",	sortnext = 5,		width = 20, align = "CENTER", },				-- 8 Current gear 1
 		{ name = L["g2"],			DoCellUpdate = RCVotingFrame.SetCellGear,			colName = "gear2",	sortnext = 5,		width = 20, align = "CENTER", },				-- 9 Current gear 2
@@ -64,6 +70,7 @@ function RCVotingFrame:OnEnable()
 	moreInfo = db.modules["RCVotingFrame"].moreInfo
 	moreInfoData = addon:GetLootDBStatistics()
 	self.frame = self:GetFrame()
+	self.pr = {};
 	self:ScheduleTimer("CandidateCheck", 20)
 	guildRanks = addon:GetGuildRanks()
 	addon:Debug("RCVotingFrame", "enabled")
@@ -143,6 +150,7 @@ function RCVotingFrame:OnCommReceived(prefix, serializedMsg, distri, sender)
 			elseif command == "change_response" and addon:UnitIsUnit(sender, addon.masterLooter) then
 				local ses, name, response = unpack(data)
 				self:SetCandidateData(ses, name, "response", response)
+				self:GetPRValues(ses)
 				self:Update()
 
 			elseif command == "lootAck" then
@@ -190,8 +198,9 @@ function RCVotingFrame:OnCommReceived(prefix, serializedMsg, distri, sender)
 			elseif command == "response" then
 				local session, name, t = unpack(data)
 				for k,v in pairs(t) do
-					self:SetCandidateData(session, name, k, v)
+					self:SetCandidateData(session, name, k, v);
 				end
+				self:GetPRValues(ses)
 				self:Update()
 
 			elseif command == "rolls" then
@@ -229,6 +238,7 @@ end
 -- Getter/Setter for candidate data
 -- Handles errors
 function RCVotingFrame:SetCandidateData(session, candidate, data, val)
+	--print("SetCandidateData: " .. (session or "") .. ", " .. (candidate or "") .. ", " .. (data  or "") .. ", " .. (val  or ""));
 	local function Set(session, candidate, data, val)
 		lootTable[session].candidates[candidate][data] = val
 	end
@@ -249,6 +259,18 @@ function RCVotingFrame:GetLootTable()
 	return lootTable
 end
 
+function RCVotingFrame:GetPRValues(s)
+	local numRaidMembers = GetNumGroupMembers();
+	local realmName = GetRealmName();
+	for i = 1, numRaidMembers do
+		local name, rank, subgroup, level, class, fileName, zone, online, isDead, role, isML = GetRaidRosterInfo(i);
+		local ep, gp, main = EPGP:GetEPGP(name .. "-" .. realmName);
+		if(ep ~= nil)then
+				self:SetCandidateData(s, name .. "-" .. realmName, "pr", ep/gp);
+		end
+	end
+end
+
 function RCVotingFrame:Setup(table)
 	--lootTable[session] = {bagged, lootSlot, awarded, name, link, quality, ilvl, type, subType, equipLoc, texture, boe}
 	lootTable = table -- Extract all the data we get
@@ -261,6 +283,7 @@ function RCVotingFrame:Setup(table)
 				rank = v.rank,
 				role = v.role,
 				response = "ANNOUNCED",
+				pr = 0,
 				ilvl = "",
 				diff = "",
 				gear1 = nil,
@@ -341,6 +364,7 @@ end
 
 function RCVotingFrame:SwitchSession(s)
 	addon:Debug("SwitchSession", s)
+	self:GetPRValues(s);
 	-- Start with setting up some statics
 	local old = session
 	session = s
@@ -760,6 +784,12 @@ function RCVotingFrame.SetCellIlvl(rowFrame, frame, data, cols, row, realrow, co
 	local name = data[realrow].name
 	frame.text:SetText(db.iLvlDecimal and addon.round(lootTable[session].candidates[name].ilvl,2) or addon.round(lootTable[session].candidates[name].ilvl))
 	data[realrow].cols[column].value = lootTable[session].candidates[name].ilvl
+end
+
+function RCVotingFrame.SetCellPR(rowFrame, frame, data, cols, row, realrow, column, fShow, table, ...)
+	local name = data[realrow].name
+	frame.text:SetText(addon.round(lootTable[session].candidates[name].pr,3))
+	data[realrow].cols[column].value = lootTable[session].candidates[name].pr
 end
 
 function RCVotingFrame.SetCellDiff(rowFrame, frame, data, cols, row, realrow, column, fShow, table, ...)

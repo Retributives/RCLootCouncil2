@@ -9,6 +9,8 @@
 embeds.xml
 Locale\Locales.xml
 
+LibGearPoints-1.2.lua
+
 core.lua
 ml_core.lua
 

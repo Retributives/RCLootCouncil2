@@ -1,3 +1,4 @@
+
 --[[--- ml_core.lua	Contains core elements for the MasterLooter.
 	Although possible, this module shouldn't be replaced unless closely replicated as other default modules depend on it.
 	Assumes several functions in SessionFrame and VotingFrame.
@@ -12,6 +13,9 @@ local addon = LibStub("AceAddon-3.0"):GetAddon("RCLootCouncil")
 RCLootCouncilML = addon:NewModule("RCLootCouncilML", "AceEvent-3.0", "AceBucket-3.0", "AceComm-3.0", "AceTimer-3.0", "AceHook-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("RCLootCouncil")
 local LibDialog = LibStub("LibDialog-1.0")
+local LibGP = LibStub("LibGearPoints-1.2")
+local LibGS = LibStub("LibGuildStorage-1.2")
+local EPGP	= LibStub("AceAddon-3.0"):GetAddon("EPGP")
 
 local db;
 
@@ -505,10 +509,10 @@ function RCLootCouncilML:Award(session, winner, response, reason)
 			end
 		end
 		if awarded then
+			--actually do it here though
 			-- flag the item as awarded and update
 			addon:SendCommand("group", "awarded", session)
 			self.lootTable[session].awarded = true -- No need to let Comms handle this
-
 			self:AnnounceAward(addon.Ambiguate(winner), self.lootTable[session].link, reason and reason.text or db.responses[response].text)
 			if self:HasAllItemsBeenAwarded() then self:EndSession() end
 
@@ -632,6 +636,35 @@ function RCLootCouncilML:TrackAndLogLoot(name, item, response, boss, votes, item
 		addon:SendCommand("group", "history", name, history_table)
 	elseif db.enableHistory then -- Just log it
 		addon:SendCommand("player", "history", name, history_table)
+	end
+end
+
+function RCLootCouncilML:GiveGP(player, item, reason)
+	local baseGP = LibGP:GetValue(item);
+	local mult = 1.0;
+	local r = "MS";
+	if(type(reason) == "table") then
+		r = reason["text"];
+	end
+	if(r == "BiS") then
+		mult = 1.1;
+	elseif(r == "Minor") then
+		mult = 0.5;
+	elseif(r == "OS") then
+		mult = 0.1;
+	elseif(r == "Disenchant") then
+		mult = 0.0;
+	end
+	local finalGP = floor(baseGP * mult);
+	print("Giving " .. finalGP .. "GP to " .. player .. " for getting " .. item .. " for " .. r)
+	if(addon.testMode) then
+		print("Old note: " .. LibGS:GetNote(player));
+	end
+	local ep,gp, isMain = EPGP:GetEPGP(player);
+	if(addon.testMode) then
+		print("New note: " .. ep .. "," .. gp+finalGP)
+	elseif(finalGP ~= 0) then
+		EPGP:IncGPBy(player, item, finalGP);
 	end
 end
 
@@ -782,7 +815,10 @@ LibDialog:Register("RCLOOTCOUNCIL_CONFIRM_AWARD", {
 				local isToken = RCLootCouncilML.lootTable[session].token
 				local awarded = RCLootCouncilML:Award(session, player, response, reason)
 				if awarded then -- log it
+
 					RCLootCouncilML:TrackAndLogLoot(player, item, response, addon.target, votes, item1, item2, reason, isToken)
+					RCLootCouncilML:GiveGP(player, item, reason);
+
 				end
 				-- We need to delay the test mode disabling so comms have a chance to be send first!
 				if addon.testMode and RCLootCouncilML:HasAllItemsBeenAwarded() then RCLootCouncilML:EndSession() end

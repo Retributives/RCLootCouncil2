@@ -239,7 +239,6 @@ function RCLootCouncil:OnInitialize()
 				124442, -- Chaos Crystal (Legion)
 				124441, -- Leylight Shard (Legion)
 				141303,141304,141305, -- Essence of Clarity (Emerald Nightmare quest item)
-				143656,143657,143658, -- Echo of Time (Nighthold quest item)
 			},
 		},
 	} -- defaults end
@@ -463,11 +462,11 @@ function RCLootCouncil:ChatCommand(msg)
 
 	elseif input == "history" or input == L["history"] or input == "h" or input == "his" then
 		self:CallModule("history")
---@debug@
+--[===[@debug@
 	elseif input == "nnp" then
 		self.nnp = not self.nnp
 		self:Print("nnp = "..tostring(self.nnp))
---@end-debug@
+--@end-debug@]===]
 	elseif input == "whisper" or input == L["whisper"] then
 		self:Print(L["whisper_help"])
 
@@ -522,11 +521,12 @@ function RCLootCouncil:ChatCommand(msg)
 	elseif input == "updatehistory" or (input == "update" and arg1 == "history") then
 		self:UpdateLootHistory()
 --@debug@
+
 	elseif input == 't' then -- Tester cmd
 		local ItemUpgradeInfo = LibStub("LibItemUpgradeInfo-1.0")
 		self:Print(self:GetItemStringFromLink(arg1),self:GetItemStringFromLink(arg2))
 		self:Print("ItemUpgradeInfo",ItemUpgradeInfo:GetItemUpgradeInfo(arg1))
---@end-debug@
+--@end-debug@]===]
 	else
 		-- Check if the input matches anything
 		for k, v in pairs(self.customChatCmd) do
@@ -1877,7 +1877,7 @@ function RCLootCouncil:GetResponseSort(response)
 end
 
 --#end UI Functions -----------------------------------------------------
---@debug@
+--[===[@debug@
 -- debug func
 function printtable( data, level )
 	if not data then return end
@@ -1895,6 +1895,7 @@ function printtable( data, level )
         print( ident .. '}' );
 	until true end
 end
+
 --@end-debug@
 
 -- v2.3.1 added some new stuff. This will update old history entries with most of that for english clients.
@@ -1953,3 +1954,4 @@ function RCLootCouncil:UpdateLootHistory()
 	end
 	self:Print("Done")
 end
+
